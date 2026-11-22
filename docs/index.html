@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pranav Jambur · The Mine</title>
+<meta name="description" content="Pranav Jambur's GitHub profile as a mining game. Every block is a day of contributions; projects are buried as gems.">
+<meta name="theme-color" content="#6f9ff7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --ui: 'VT323', 'Courier New', ui-monospace, monospace; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b0d; color: #fff; font-family: var(--ui); font-size: 20px; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  #world { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; cursor: crosshair; }
+  #world.pan { cursor: grabbing; }
+  #world.ent { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .gui { background: #c6c6c6; color: #3f3f3f; border: 3px solid #000; box-shadow: inset 3px 3px #fff, inset -3px -3px #555; }
+  .tip { background: rgba(16, 2, 18, .94); border: 2px solid #2a0a5e; outline: 2px solid #100010; color: #fff; padding: 6px 10px 7px; line-height: 1.05; }
+  .tip b { font-weight: normal; color: #ffff55; }
+  .tip .t { font-size: 22px; }
+  .tip .s { color: #a8a8a8; }
+
+  .mcbtn { font-synthesis: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 4px 18px 6px;
+    font-family: var(--ui); font-size: 26px; color: #fff; text-decoration: none; text-shadow: 2px 2px #3f3f3f; cursor: pointer;
+    background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px #acacac, inset -2px -4px #464646; }
+  .mcbtn:hover, .mcbtn:focus-visible { background: #7b86c2; box-shadow: inset 2px 2px #b8c0ff, inset -2px -4px #4a5290; color: #ffffa0; outline: none; }
+  .mcbtn.sm { min-height: 36px; font-size: 22px; padding: 2px 10px 4px; }
+  .mcbtn.go { background: #4f9e2c; box-shadow: inset 2px 2px #8ee05a, inset -2px -4px #2e6b1a; }
+  .mcbtn.go:hover { background: #5fb636; }
+
+  /* title screen */
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,.25), rgba(0,0,0,.65)); text-align: center; z-index: 20; overflow: auto; }
+  #logo { max-width: 94vw; }
+  #splash { color: #ffff55; text-shadow: 3px 3px #3f3f15; font-size: clamp(22px, 3.2vw, 34px); transform: rotate(-3deg); animation: pulse 1.1s ease-in-out infinite; margin-top: -6px; }
+  @keyframes pulse { 50% { transform: rotate(-3deg) scale(1.06); } }
+  #title .sub { font-size: 24px; text-shadow: 2px 2px #000; max-width: 640px; color: #f0f0f0; background: rgba(0,0,0,.45); padding: 6px 14px 8px; }
+  #title .menu { display: flex; flex-direction: column; gap: 10px; width: min(420px, 90vw); margin-top: 10px; }
+  #title .foot { position: absolute; bottom: 10px; left: 0; right: 0; font-size: 18px; color: #ddd; text-shadow: 2px 2px #000; }
+
+  /* hud */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #hud > * { pointer-events: auto; }
+  #who { position: absolute; top: 10px; left: 10px; padding: 8px 12px 10px; max-width: min(460px, calc(100vw - 20px)); line-height: 1; }
+  #who .n { font-size: 30px; color: #2b2b2b; }
+  #who .h { font-size: 20px; margin-top: 2px; }
+  #who .st { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 19px; }
+  #who .st span b { color: #1d5c9e; font-weight: normal; }
+  #mm { position: absolute; top: 10px; right: 10px; padding: 6px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  #minimap { display: block; cursor: pointer; border: 2px solid #373737; max-width: calc(100vw - 40px); }
+  #btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  #toasts { position: absolute; right: 10px; top: 150px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; }
+  .toast { display: flex; gap: 10px; align-items: center; min-width: 260px; padding: 8px 12px; background: #212121; border: 3px solid #000; box-shadow: inset 2px 2px #555, inset -2px -2px #111;
+    animation: tin .35s steps(5) both; line-height: 1; }
+  .toast.out { animation: tout .35s steps(5) both; }
+  .toast .k { color: #ffff55; font-size: 19px; }
+  .toast .v { font-size: 22px; }
+  .toast .d { font-size: 17px; color: #bbb; }
+  @keyframes tin { from { transform: translateX(120%); } }
+  @keyframes tout { to { transform: translateX(120%); } }
+  #info { position: absolute; left: 10px; bottom: 96px; max-width: min(360px, calc(100vw - 20px)); }
+  #hint { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); text-align: center; font-size: 21px; width: min(620px, 92vw); }
+  #hotbar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; padding: 3px; background: #000; gap: 0; }
+  .slot { position: relative; width: 56px; height: 56px; background: #8b8b8b; box-shadow: inset 3px 3px #373737, inset -3px -3px #fff; display: grid; place-items: center; }
+  .slot canvas { width: 36px; height: 36px; }
+  .slot .c { position: absolute; right: 4px; bottom: 0; font-size: 24px; color: #fff; text-shadow: 2px 2px #3f3f3f; }
+  .slot.sel::after { content: ''; position: absolute; inset: -3px; border: 3px solid #fff; outline: 2px solid #000; }
+  .slot.bump { animation: bump .25s steps(3); }
+  @keyframes bump { 50% { transform: scale(1.15); } }
+  #tooltip { position: fixed; z-index: 30; pointer-events: none; }
+
+  /* modal */
+  #modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(0,0,0,.55); padding: 16px; }
+  #modal .panel { position: relative; width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 26px 26px; font-size: 22px; line-height: 1.15; }
+  #modal h2 { margin: 0 44px 4px 0; font-weight: normal; font-size: 38px; color: #2b2b2b; display: flex; align-items: center; gap: 12px; }
+  #modal h3 { margin: 18px 0 6px; font-weight: normal; font-size: 27px; color: #2b2b2b; border-bottom: 2px solid #8b8b8b; }
+  #modal p { margin: 6px 0; }
+  #modal ul { margin: 6px 0; padding-left: 20px; }
+  #modal li { margin: 4px 0; }
+  #modal .muted { color: #666; }
+  #modal a:not(.mcbtn) { color: #1d4fa0; }
+  #modal .close { position: absolute; top: 10px; right: 10px; width: 40px; min-height: 40px; padding: 0; }
+  #modal .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+  #modal .stat { background: #8b8b8b; box-shadow: inset 2px 2px #373737, inset -2px -2px #fff; padding: 6px 10px; color: #fff; text-shadow: 2px 2px #3f3f3f; line-height: 1; }
+  #modal .stat { font-size: 19px; overflow-wrap: anywhere; }
+  #modal .stat b { display: block; font-weight: normal; font-size: 30px; color: #ffff55; }
+  #modal .proj { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px dashed #8b8b8b; }
+  #modal .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  #modal canvas.heat { width: 100%; margin-top: 6px; border: 2px solid #373737; }
+  #modal .xp { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 6px 0; border-bottom: 1px dashed #8b8b8b; }
+  #modal .xp .o { color: #2b2b2b; font-size: 25px; }
+  #modal .xp .w { color: #1d5c9e; text-align: right; }
+  #modal .xp .d { grid-column: 1 / -1; }
+
+  @media (max-width: 700px) {
+    #who .n { font-size: 24px; } #who .h { display: none; } #who .st { font-size: 17px; }
+    #who { right: 10px; padding: 6px 10px 8px; }
+    #mm { top: 118px; left: 10px; right: 10px; align-items: stretch; }
+    #minimap { width: 100%; max-width: none; }
+    #btns { justify-content: space-between; }
+    #toasts { top: 250px; } .toast { min-width: 0; }
+    .slot { width: 40px; height: 40px; } .slot canvas { width: 26px; height: 26px; } .slot .c { font-size: 19px; right: 2px; }
+    #info { bottom: 66px; } #hint { bottom: 66px; font-size: 19px; }
+    #title .sub { font-size: 19px; } #title .mcbtn { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="world" aria-label="Mining world. Every block in the mine is one day of GitHub contributions."></canvas>
+
+<div id="title">
+  <canvas id="logo" aria-label="Pranav Jambur"></canvas>
+  <div id="splash"></div>
+  <div class="sub" id="titleSub"></div>
+  <div class="menu">
+    <button class="mcbtn go" id="start">Start mining</button>
+    <button class="mcbtn" id="plainBtn">Just show me the profile</button>
+    <a class="mcbtn" id="ghBtn" target="_blank" rel="noopener">GitHub profile</a>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<div id="hud" hidden>
+  <div id="who" class="gui"></div>
+  <div id="mm" class="gui">
+    <canvas id="minimap" title="Click to travel"></canvas>
+    <div id="btns">
+      <button class="mcbtn sm" data-act="out" title="Zoom out">−</button>
+      <button class="mcbtn sm" data-act="in" title="Zoom in">+</button>
+      <button class="mcbtn sm" data-act="sound" id="sndBtn" title="Sound">Sound: on</button>
+      <button class="mcbtn sm" data-act="plain">Profile</button>
+    </div>
+  </div>
+  <div id="toasts"></div>
+  <div id="info" class="tip" hidden></div>
+  <div id="hint" class="tip">Click any block to mine it. Each block is a day of commits; rarer ore means a busier day.<br><b>Signs and the chest open on click. Gems in the deep layer are projects.</b></div>
+  <div id="hotbar"></div>
+</div>
+<div id="tooltip" class="tip" hidden></div>
+<div id="modal" hidden><div class="gui panel" role="dialog" aria-modal="true"><button class="mcbtn sm close" aria-label="Close">✕</button><div id="mbody"></div></div></div>
+
+<script src="data.js"></script>
+<script type="module">
+import * as A from './art.js';
+
+const P = window.PROFILE, S = P.stats, DAYS = P.days;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const dt0 = (iso) => new Date(iso + 'T00:00:00');
+const fmt = (iso) => { const d = dt0(iso); return `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
+const fmtLong = (iso) => `${WD[dt0(iso).getDay()]}, ${fmt(iso)}`;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const ranked = DAYS.map((d) => d.count).filter(Boolean).sort((a, b) => b - a);
+
+// ------------------------------------------------------------ textures & icons
+const TEX = {};
+for (const n of A.BLOCKS) {
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const x = c.getContext('2d'), id = x.createImageData(16, 16);
+  A.texture(n).forEach((col, i) => {
+    if (!col) return;
+    const v = parseInt(col.slice(1), 16);
+    id.data.set([v >> 16, (v >> 8) & 255, v & 255, 255], i * 4);
+  });
+  x.putImageData(id, 0, 0);
+  TEX[n] = c;
+}
+function pixCanvas(rows, colors) {
+  const w = Math.max(...rows.map((r) => r.length)), h = rows.length;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  rows.forEach((r, y) => [...r].forEach((ch, i) => { const col = colors[ch]; if (col) { x.fillStyle = col; x.fillRect(i, y, 1, 1); } }));
+  return c;
+}
+function gemCanvas(ore) {
+  const g = A.gemIcon(ore), c = document.createElement('canvas'); c.width = 16; c.height = 16;
+  const x = c.getContext('2d');
+  g.forEach((row, y) => row.forEach((col, i) => { if (col) { x.fillStyle = col; x.fillRect(i, y + 2, 1, 1); } }));
+  return c;
+}
+const ICON = {
+  pick: pixCanvas(A.PICK, { G: '#b8bec4', T: '#8a5a2b' }),
+  chest: pixCanvas(A.CHEST, A.CHEST_COLORS),
+  book: pixCanvas(A.BOOK, A.BOOK_COLORS),
+  star: pixCanvas(A.STAR, { '#': '#ffd84a' }),
+};
+for (const o of Object.keys(A.ORES)) ICON[o] = gemCanvas(o);
+ICON.stone = TEX.stone; ICON.dirt = TEX.dirt; ICON.bed = TEX.bed;
+
+// pixel text, cached per string/scale/colour
+const textCache = new Map();
+function textCanvas(str, s, color, shadow) {
+  const key = [str, s, color, shadow].join('|');
+  if (textCache.has(key)) return textCache.get(key);
+  const { pixels, width } = A.textPixels(str);
+  const c = document.createElement('canvas'); c.width = (width + 1) * s; c.height = 8 * s;
+  const x = c.getContext('2d');
+  const paint = (col, o) => { x.fillStyle = col; for (const [a, b] of pixels) x.fillRect(a * s + o, b * s + o, s, s); };
+  if (shadow) paint(shadow, s);
+  paint(color, 0);
+  textCache.set(key, c);
+  return c;
+}
+
+// ------------------------------------------------------------ world
+const weeks = [];
+DAYS.forEach((d) => { const wd = dt0(d.date).getDay(); if (!weeks.length || wd === 0) weeks.push([]); weeks[weeks.length - 1][wd] = d; });
+const VIL = 18, MINE0 = VIL, EAST = 7;
+const COLS = VIL + weeks.length + EAST, ROWS = 19, SURF = 6;
+const grid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
+for (let c = 0; c < COLS; c++) {
+  grid[SURF][c] = { t: 'grass' };
+  grid[7][c] = { t: 'dirt' };
+  for (let r = 8; r <= 15; r++) grid[r][c] = { t: 'stone' };
+  grid[16][c] = { t: 'deep' }; grid[17][c] = { t: 'deep' };
+  grid[18][c] = { t: 'bed' };
+}
+weeks.forEach((w, i) => {
+  for (let wd = 0; wd < 7; wd++) {
+    const d = w[wd], c = MINE0 + i, r = 8 + wd;
+    if (!d) { grid[r][c] = { t: 'stone', dim: true }; continue; }
+    const best = d.date === S.best.date;
+    grid[r][c] = { t: best ? 'emerald' : A.LEVEL_ORE[d.level], day: d, best, dim: !d.count };
+  }
+});
+P.projects.forEach((p, i) => {
+  const c = MINE0 + 4 + Math.round(i * ((weeks.length - 8) / Math.max(1, P.projects.length - 1)));
+  grid[16 + (i % 2)][c] = { t: p.gem, proj: i };
+});
+function tree(c) {
+  for (let r = 3; r <= 5; r++) grid[r][c] = { t: 'log' };
+  for (let dc = -2; dc <= 2; dc++) if (c + dc >= 0 && c + dc < COLS) grid[2][c + dc] = { t: 'leaf' };
+  for (let dc = -1; dc <= 1; dc++) grid[1][c + dc] = { t: 'leaf' };
+  grid[0][c] = { t: 'leaf' };
+}
+tree(1); tree(COLS - 3);
+for (const c of [MINE0 - 1, MINE0 + weeks.length]) for (let r = 7; r <= 15; r++) grid[r][c] = { t: r === 7 ? 'plank' : 'log' };
+const ENT = [
+  { col: 4, label: 'ABOUT', kind: 'about' },
+  { col: 7, label: 'WORK', kind: 'xp' },
+  { col: 10, label: 'PAPERS', kind: 'research' },
+  { col: 13, label: 'LINKS', kind: 'links' },
+  { col: 16, label: 'REPOS', kind: 'repos', chest: true },
+  { col: COLS - 6, label: 'THE END?', kind: 'end' },
+];
+const HARD = { plank: .4, stone: .35, dirt: .25, grass: .3, leaf: .12, log: .45, deep: .5, coal: .5, iron: .6, gold: .7, diamond: .8, emerald: 1.1 };
+const hardness = (b) => HARD[b.t] ?? 1.0;
+const BLOCK_NAME = { plank: 'Mine support', stone: 'Stone', dirt: 'Dirt', grass: 'Grass block', leaf: 'Leaves', log: 'Log', deep: 'Deep stone', bed: 'Bedrock' };
+
+// ------------------------------------------------------------ canvas setup
+const cv = $('#world'), ctx = cv.getContext('2d');
+const wc = document.createElement('canvas'), wx = wc.getContext('2d');
+let W = 0, H = 0, DPR = 1, bs = 24, offY = 0, camX = 0, follow = true;
+const HOTBAR_H = 92;
+
+function fitBs() {
+  const avail = H - HOTBAR_H;
+  return W < 700 ? 26 : Math.max(16, Math.min(30, Math.floor(avail / ROWS)));
+}
+function resize(keep) {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (!keep) bs = fitBs();
+  renderWorld();
+}
+function renderWorld() {
+  wc.width = COLS * bs; wc.height = ROWS * bs;
+  wx.imageSmoothingEnabled = false;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawCell(r, c);
+  offY = Math.floor(H - HOTBAR_H - ROWS * bs);
+  if (offY < -SURF * bs + 40) offY = -SURF * bs + 40;
+  drawMinimapBase();
+}
+function drawCell(r, c) {
+  const x = c * bs, y = r * bs, b = grid[r][c];
+  wx.clearRect(x, y, bs, bs);
+  if (!b) return;
+  if (b.mined) { if (r >= SURF) { wx.drawImage(TEX.cave, x, y, bs, bs); wx.fillStyle = 'rgba(0,0,0,.25)'; wx.fillRect(x, y, bs, bs); } return; }
+  wx.drawImage(TEX[b.t], x, y, bs, bs);
+  if (b.dim) { wx.fillStyle = 'rgba(0,0,0,.38)'; wx.fillRect(x, y, bs, bs); }
+}
+
+// ------------------------------------------------------------ minimap
+const mm = $('#minimap'), mmx = mm.getContext('2d');
+const MMS = 3;
+mm.width = COLS * MMS; mm.height = ROWS * MMS;
+const MMC = { plank: '#b48a52', grass: '#5f9f35', dirt: '#7a4e33', stone: '#6f6f6f', deep: '#45454c', bed: '#1c1c1c', leaf: '#357d24', log: '#6b5032', coal: '#3a3a3a' };
+const mmBase = document.createElement('canvas'); mmBase.width = mm.width; mmBase.height = mm.height;
+function mmColor(b) {
+  if (!b) return null;
+  if (b.mined) return '#241f1b';
+  if (b.dim) return '#3d3d3d';
+  if (b.t === 'coal') return '#5e5e5e';
+  if (A.ORES[b.t] && b.t !== 'coal') return A.ORES[b.t][1];
+  return MMC[b.t];
+}
+function drawMinimapBase() {
+  const x = mmBase.getContext('2d');
+  x.fillStyle = '#8fb4f2'; x.fillRect(0, 0, mmBase.width, mmBase.height);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const col = mmColor(grid[r][c]); if (col) { x.fillStyle = col; x.fillRect(c * MMS, r * MMS, MMS, MMS); } }
+}
+function drawMinimap() {
+  mmx.drawImage(mmBase, 0, 0);
+  mmx.strokeStyle = '#fff'; mmx.lineWidth = 1;
+  mmx.strokeRect(camX / bs * MMS + .5, .5, W / bs * MMS, mm.height - 1);
+  mmx.fillStyle = '#ff7a1a'; mmx.fillRect(miner.x * MMS - 1, (SURF - 2) * MMS, 3, 2 * MMS);
+}
+mm.addEventListener('click', (e) => {
+  const r = mm.getBoundingClientRect();
+  const col = (e.clientX - r.left) / r.width * COLS;
+  camX = col * bs - W / 2; follow = false; clampCam();
+  walkTo = Math.max(.5, Math.min(COLS - .5, col)); target = null;
+});
+
+// ------------------------------------------------------------ state
+const miner = { x: 9.5, dir: 1, state: 'idle', swingT: 0, walkT: 0, lastStrike: 0 };
+let target = null, walkTo = null, progress = 0;
+let hover = null, playing = false;
+const keys = {};
+const particles = [], flyers = [], sparkles = [];
+const clouds = Array.from({ length: 7 }, (_, i) => ({ x: i * 260 + Math.random() * 120, y: 10 + Math.random() * 70, w: 70 + Math.random() * 90 }));
+const counts = {};
+const found = new Set(), signsRead = new Set();
+const ach = new Set();
+let crackCells = (() => {
+  const r = A.rng(42), out = []; let x = 8, y = 8;
+  for (let i = 0; i < 60; i++) { out.push([x, y]); x = Math.max(0, Math.min(15, x + Math.round(r() * 2 - 1))); y = Math.max(0, Math.min(15, y + Math.round(r() * 2 - 1))); if (i % 15 === 14) { x = 8 + Math.round(r() * 4 - 2); y = 8 + Math.round(r() * 4 - 2); } }
+  return out;
+})();
+
+// ------------------------------------------------------------ sound
+let ac = null, soundOn = true;
+function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { soundOn = false; } } return ac; }
+function noise(dur, freq, type, gain) {
+  const a = audio(); if (!a || !soundOn) return;
+  const len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = a.createGain(); g.gain.value = gain;
+  src.connect(f).connect(g).connect(a.destination); src.start();
+}
+function tone(freqs, dur, gain, type = 'square') {
+  const a = audio(); if (!a || !soundOn) return;
+  freqs.forEach((fq, i) => {
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + i * dur;
+    o.type = type; o.frequency.setValueAtTime(fq, t);
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur * .95);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur);
+  });
+}
+const SFX = {
+  hit: () => noise(.06, 1400, 'bandpass', .35),
+  brk: () => { noise(.2, 700, 'lowpass', .5); tone([220, 140], .05, .03); },
+  pop: () => tone([660, 990], .06, .04, 'triangle'),
+  ach: () => tone([523, 659, 784, 1046], .09, .035, 'square'),
+  click: () => tone([880], .04, .03, 'square'),
+};
+
+// ------------------------------------------------------------ hud
+function buildWho() {
+  $('#who').innerHTML = `<div class="n">${esc(P.name)}</div><div class="h">${esc(P.headline)}</div>
+    <div class="st"><span><b>${S.total}</b> contributions</span><span>best <b>${fmt(S.best.date)}</b> (${S.best.count})</span><span><b>${S.longest}</b> day streak</span></div>`;
+}
+const SLOTS = [['pick', ''], ['coal'], ['iron'], ['gold'], ['diamond'], ['emerald'], ['book', `0/${P.projects.length}`], ['stone'], ['dirt']];
+function buildHotbar() {
+  const hb = $('#hotbar'); hb.innerHTML = '';
+  SLOTS.forEach(([ic, c], i) => {
+    const s = document.createElement('div'); s.className = 'slot' + (i === 0 ? ' sel' : ''); s.dataset.k = ic;
+    const can = document.createElement('canvas'); can.width = 16; can.height = 16;
+    const x = can.getContext('2d'); x.imageSmoothingEnabled = false;
+    const src = ICON[ic]; const sc = Math.min(16 / src.width, 16 / src.height);
+    x.drawImage(src, (16 - src.width * sc) / 2, (16 - src.height * sc) / 2, src.width * sc, src.height * sc);
+    s.appendChild(can);
+    const n = document.createElement('span'); n.className = 'c'; n.textContent = c ?? ''; s.appendChild(n);
+    s.title = { pick: 'Pickaxe', coal: 'Coal: light days', iron: 'Iron: steady days', gold: 'Gold: busy days', diamond: 'Diamond: top-quartile days', emerald: 'Emerald: the best day', book: 'Projects found', stone: 'Stone', dirt: 'Dirt' }[ic];
+    hb.appendChild(s);
+  });
+}
+const slotFor = (b) => b.proj !== undefined ? 'book' : ['coal', 'iron', 'gold', 'diamond', 'emerald'].includes(b.t) ? b.t : ['dirt', 'grass', 'leaf', 'log', 'plank'].includes(b.t) ? 'dirt' : 'stone';
+function bumpSlot(k) {
+  const s = $(`.slot[data-k="${k}"]`); if (!s) return;
+  counts[k] = (counts[k] || 0) + 1;
+  s.querySelector('.c').textContent = k === 'book' ? `${found.size}/${P.projects.length}` : counts[k];
+  s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump');
+}
+
+function toast(key, title, desc, icon) {
+  if (ach.has(key)) return; ach.add(key);
+  const t = document.createElement('div'); t.className = 'toast';
+  const c = document.createElement('canvas'); c.width = 16; c.height = 16; c.style.width = c.style.height = '32px';
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; const src = ICON[icon] || TEX[icon] || ICON.pick;
+  const sc = Math.min(16 / src.width, 16 / src.height); x.drawImage(src, (16 - src.width * sc) / 2, (16 - src.height * sc) / 2, src.width * sc, src.height * sc);
+  t.appendChild(c);
+  const tx = document.createElement('div'); tx.innerHTML = `<div class="k">Unlocked</div><div class="v">${esc(title)}</div><div class="d">${esc(desc)}</div>`;
+  t.appendChild(tx);
+  $('#toasts').appendChild(t); SFX.ach();
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 4200);
+}
+
+function describe(b, r, c) {
+  if (b.day) {
+    const d = b.day;
+    const rank = d.count ? ranked.indexOf(d.count) + 1 : 0;
+    const ore = b.best ? 'Emerald ore' : A.ORE_LABEL[b.t];
+    return { title: fmtLong(d.date), lines: [d.count ? `<b>${plural(d.count, 'contribution')}</b>` : 'No contributions. Just stone.', d.count ? `${ore} · rank #${rank} of ${ranked.length} active days` : ''] };
+  }
+  if (b.proj !== undefined) { const p = P.projects[b.proj]; return { title: p.name, lines: [`<b>${esc(A.ORE_LABEL[p.gem])}</b> · a buried project`, esc(p.short.toLowerCase())] }; }
+  if (b.dim && c >= MINE0) return { title: 'Stone', lines: ['Outside the last year'] };
+  return { title: BLOCK_NAME[b.t] || b.t, lines: [r >= 8 && r <= 14 && (c < MINE0 || c >= MINE0 + weeks.length) ? 'The mine is to the ' + (c < MINE0 ? 'east' : 'west') : ''] };
+}
+function showInfo(b, r, c) {
+  const d = describe(b, r, c);
+  const el = $('#info'); el.hidden = false;
+  el.innerHTML = `<div class="t">${esc(d.title)}</div>${d.lines.filter(Boolean).map((l) => `<div>${l}</div>`).join('')}`;
+}
+
+// ------------------------------------------------------------ modal content
+const linkList = () => Object.entries(P.links).filter(([, v]) => v).map(([k, v]) =>
+  `<a class="mcbtn sm" href="${esc(k === 'email' ? 'mailto:' + v : v)}" target="_blank" rel="noopener">${esc({ website: 'Website', github: 'GitHub', linkedin: 'LinkedIn', email: 'Email', leetcode: 'LeetCode', codeforces: 'Codeforces' }[k] || k)}</a>`).join('');
+const statsGrid = () => `<div class="grid">
+  <div class="stat"><b>${S.total}</b>contributions</div><div class="stat"><b>${S.activeDays}</b>active days</div>
+  <div class="stat"><b>${S.longest}</b>longest streak</div><div class="stat"><b>${S.best.count}</b>best day, ${fmt(S.best.date)}</div>
+  ${S.publicRepos != null ? `<div class="stat"><b>${S.publicRepos}</b>public repos</div>` : ''}
+  ${S.commits != null ? `<div class="stat"><b>${S.commits}</b>commits</div>` : ''}
+  ${S.prs != null ? `<div class="stat"><b>${S.prs}</b>pull requests</div>` : ''}</div>`;
+const iconTag = (k) => { const c = ICON[k] || TEX[k]; return `<img alt="" src="${c.toDataURL()}" style="width:32px;height:32px;image-rendering:pixelated">`; };
+const xpHtml = () => P.experience.map((e) => `<div class="xp"><div class="o">${esc(e.org)}</div><div class="w">${esc(e.when)}</div><div class="d">${esc(e.role)}. ${esc(e.what)}</div></div>`).join('');
+const projHtml = () => P.projects.map((p) => `<div class="proj">${iconTag(p.gem)}<div><div style="font-size:25px;color:#2b2b2b">${esc(p.name)}</div><div>${esc(p.what)}</div><div class="muted">${esc(p.stack)}${p.url ? ` · <a href="${esc(p.url)}" target="_blank" rel="noopener">repo</a>` : ''}</div></div></div>`).join('');
+const reposHtml = () => {
+  if (S.top?.length) return `<ul>${S.top.map((r) => `<li>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name)}: <b>${r.commits}</b> commits${r.lang ? ` <span class="muted">· ${esc(r.lang)}</span>` : ''}</li>`).join('')}</ul>`;
+  return `<ul>${(S.recent || []).map((r) => `<li><a href="https://github.com/${esc(S.login)}/${esc(r.name)}" target="_blank" rel="noopener">${esc(r.name)}</a> <span class="muted">· last push ${fmt(r.pushed)}</span></li>`).join('')}</ul>`;
+};
+function heatCanvas() {
+  const s = 12, c = document.createElement('canvas'); c.width = weeks.length * s; c.height = 7 * s;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  weeks.forEach((w, i) => { for (let wd = 0; wd < 7; wd++) { const d = w[wd]; if (!d) continue; x.drawImage(TEX[d.date === S.best.date ? 'emerald' : A.LEVEL_ORE[d.level]], i * s, wd * s, s, s); if (!d.count) { x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(i * s, wd * s, s, s); } } });
+  return `<canvas class="heat" width="${c.width}" height="${c.height}" data-src="${c.toDataURL()}"></canvas>`;
+}
+const CONTENT = {
+  about: () => `<h2>${iconTag('pick')} ${esc(P.name)}</h2><p>${esc(P.about)}</p><h3>The last year</h3>${statsGrid()}<div class="row">${linkList()}</div>`,
+  xp: () => `<h2>${iconTag('chest')} Work</h2>${xpHtml()}`,
+  research: () => `<h2>${iconTag('book')} Papers & side quests</h2><ul>${P.research.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><h3>Side quests</h3><ul>${P.side.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
+  links: () => `<h2>${iconTag('star')} Links</h2><p>Come say hi.</p><div class="row">${linkList()}</div>`,
+  repos: () => `<h2>${iconTag('chest')} ${S.top?.length ? 'Top veins' : 'Recently mined'}</h2><p class="muted">${S.top?.length ? 'Repositories with the most commits in the last year.' : 'Repositories pushed to most recently.'}</p>${reposHtml()}`,
+  end: () => `<h2>${iconTag('emerald')} The end, for now</h2><p>You walked the whole year. ${found.size < P.projects.length ? `There are still ${P.projects.length - found.size} project gems buried in the deep layer.` : 'You found every project, too.'}</p><div class="row">${linkList()}</div>`,
+  plain: () => `<h2>${iconTag('pick')} ${esc(P.name)}</h2><p>${esc(P.about)}</p><div class="row">${linkList()}</div>
+    <h3>Contributions, last year</h3>${heatCanvas()}${statsGrid()}
+    <h3>Work</h3>${xpHtml()}<h3>Projects</h3>${projHtml()}
+    <h3>Research</h3><ul>${P.research.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <h3>Side quests</h3><ul>${P.side.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <h3>${S.top?.length ? 'Top repositories' : 'Recent repositories'}</h3>${reposHtml()}`,
+  project: (i) => { const p = P.projects[i]; return `<h2>${iconTag(p.gem)} ${esc(p.name)}</h2><p class="muted">You dug up a project. ${found.size} of ${P.projects.length} found.</p><p>${esc(p.what)}</p><p><b style="font-weight:normal;color:#1d5c9e">Stack:</b> ${esc(p.stack)}</p>${p.url ? `<div class="row"><a class="mcbtn sm go" href="${esc(p.url)}" target="_blank" rel="noopener">Open the repo</a></div>` : ''}`; },
+};
+function openModal(kind, arg) {
+  $('#mbody').innerHTML = CONTENT[kind](arg);
+  $('#mbody').querySelectorAll('canvas.heat').forEach((c) => { const img = new Image(); img.onload = () => { const x = c.getContext('2d'); x.drawImage(img, 0, 0); }; img.src = c.dataset.src; });
+  $('#modal').hidden = false; $('#modal .close').focus();
+  if (['about', 'xp', 'research', 'links'].includes(kind)) {
+    signsRead.add(kind);
+    if (signsRead.size === 4) toast('signs', 'Well read', 'Read every sign in the village', 'book');
+  }
+}
+const closeModal = () => { $('#modal').hidden = true; };
+$('#modal .close').onclick = closeModal;
+$('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+
+// ------------------------------------------------------------ input
+const toWorld = (sx, sy) => ({ c: Math.floor((sx + camX) / bs), r: Math.floor((sy - offY) / bs) });
+function entAt(c, r) { return ENT.find((e) => e.col === c && (r === SURF - 1 || (r === SURF - 2 && !e.chest))); }
+function clampCam() { camX = Math.max(0, Math.min(COLS * bs - W, camX)); if (COLS * bs < W) camX = (COLS * bs - W) / 2; }
+
+let down = null;
+cv.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, cam: camX, moved: false }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => {
+  if (down) {
+    const dx = e.clientX - down.x;
+    if (Math.abs(dx) > 8 || Math.abs(e.clientY - down.y) > 8) down.moved = true;
+    if (down.moved) { camX = down.cam - dx; follow = false; clampCam(); cv.classList.add('pan'); }
+    return;
+  }
+  updateHover(e.clientX, e.clientY);
+});
+cv.addEventListener('pointerup', (e) => {
+  cv.classList.remove('pan');
+  if (down && !down.moved) click(e.clientX, e.clientY);
+  down = null;
+});
+cv.addEventListener('pointerleave', () => { hover = null; $('#tooltip').hidden = true; });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); camX += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY); follow = false; clampCam(); }, { passive: false });
+
+function updateHover(sx, sy) {
+  const { c, r } = toWorld(sx, sy);
+  const tt = $('#tooltip');
+  hover = null; cv.classList.remove('ent');
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS || !playing) { tt.hidden = true; return; }
+  const ent = entAt(c, r);
+  if (ent) { hover = { ent }; cv.classList.add('ent'); tt.innerHTML = `<div class="t">${esc(ent.label)}</div><div class="s">${ent.chest ? 'Open the chest' : 'Read the sign'}</div>`; }
+  else {
+    const b = grid[r][c];
+    if (!b || b.mined) { tt.hidden = true; return; }
+    hover = { r, c };
+    const d = describe(b, r, c);
+    tt.innerHTML = `<div class="t">${esc(d.title)}</div>${d.lines.filter(Boolean).slice(0, 1).map((l) => `<div>${l}</div>`).join('')}`;
+  }
+  tt.hidden = false;
+  const tw = tt.offsetWidth, th = tt.offsetHeight;
+  tt.style.left = Math.min(W - tw - 6, sx + 16) + 'px';
+  tt.style.top = Math.max(6, sy - th - 10) + 'px';
+}
+
+function click(sx, sy) {
+  if (!playing) return;
+  const { c, r } = toWorld(sx, sy);
+  if (c < 0 || c >= COLS) return;
+  $('#hint').hidden = true;
+  const ent = entAt(c, r);
+  follow = true;
+  if (ent) { SFX.click(); walkTo = c + .5; target = null; openModal(ent.kind); return; }
+  if (r < 0 || r >= ROWS) { walkTo = c + .5; target = null; return; }
+  const b = grid[r][c];
+  if (!b || b.mined) { walkTo = c + .5; target = null; return; }
+  if (b.t === 'bed') {
+    showInfo(b, r, c); walkTo = c + .5; target = null;
+    toast('bedrock', 'Nice try', 'Bedrock does not break', 'bed');
+    return;
+  }
+  target = { r, c }; progress = 0; walkTo = null; miner.swingT = 0; miner.lastStrike = 0;
+}
+
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+  if (!playing || !$('#modal').hidden) return;
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === '+' || e.key === '=') zoom(4);
+  if (e.key === '-') zoom(-4);
+});
+addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+function zoom(d) {
+  const centerCol = (camX + W / 2) / bs;
+  bs = Math.max(8, Math.min(56, bs + d));
+  renderWorld();
+  camX = centerCol * bs - W / 2; clampCam();
+}
+$('#btns').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
+  if (a === 'in') zoom(4);
+  if (a === 'out') zoom(-4);
+  if (a === 'plain') openModal('plain');
+  if (a === 'sound') { soundOn = !soundOn; $('#sndBtn').textContent = 'Sound: ' + (soundOn ? 'on' : 'off'); }
+});
+
+// ------------------------------------------------------------ mining
+function breakBlock(r, c) {
+  const b = grid[r][c];
+  b.mined = true;
+  drawCell(r, c); drawMinimapBase();
+  SFX.brk();
+  const tex = A.texture(b.t).filter(Boolean);
+  for (let i = 0; i < 18; i++) particles.push({ x: (c + .5) * bs, y: (r + .5) * bs, vx: (Math.random() * 2 - 1) * bs * 3, vy: -Math.random() * bs * 6, life: .7 + Math.random() * .4, col: tex[Math.floor(Math.random() * tex.length)], s: Math.max(2, bs / 8) });
+  const k = slotFor(b);
+  if (b.proj !== undefined) found.add(b.proj);
+  const slot = $(`.slot[data-k="${k}"]`);
+  if (slot) {
+    const sr = slot.getBoundingClientRect();
+    flyers.push({ icon: ICON[b.proj !== undefined ? P.projects[b.proj].gem : (A.ORES[b.t] ? b.t : k)] || TEX[b.t], x0: (c + .5) * bs - camX, y0: (r + .5) * bs + offY, x1: sr.left + sr.width / 2, y1: sr.top + sr.height / 2, t: 0, k });
+  }
+  showInfo(b, r, c);
+  toast('first', 'First block', 'Every block here is a day of work', 'pick');
+  if (b.t === 'diamond') toast('diamond', 'Struck diamond', 'Found a top-quartile day', 'diamond');
+  if (b.best) toast('best', 'Best day ever', `${fmt(S.best.date)}: ${plural(S.best.count, 'contribution')}`, 'emerald');
+  if (b.proj !== undefined) {
+    setTimeout(() => openModal('project', b.proj), 450);
+    if (found.size === P.projects.length) toast('gems', 'Archaeologist', 'Dug up every project', P.projects[0].gem);
+  }
+}
+
+// ------------------------------------------------------------ loop
+let last = performance.now(), T = 0;
+function update(dt) {
+  T += dt;
+  const speed = 7;
+  let moving = 0;
+  if (playing && (keys['a'] || keys['arrowleft'])) moving = -1;
+  if (playing && (keys['d'] || keys['arrowright'])) moving = 1;
+  miner.state = 'idle';
+  if (moving) { target = null; walkTo = null; miner.dir = moving; miner.x += moving * speed * dt; miner.state = 'walk'; follow = true; }
+  else if (target) {
+    const tx = target.c + .5, dx = tx - miner.x;
+    if (Math.abs(dx) > 1.25) { miner.dir = Math.sign(dx); miner.x += Math.sign(dx) * Math.min(speed * dt, Math.abs(dx) - 1.2); miner.state = 'walk'; }
+    else {
+      if (Math.abs(dx) > .2) miner.dir = Math.sign(dx);
+      miner.state = 'mine';
+      const b = grid[target.r][target.c];
+      progress += dt / hardness(b);
+      miner.swingT += dt;
+      const strike = Math.floor(miner.swingT / .3 + .5);
+      if (strike > miner.lastStrike) {
+        miner.lastStrike = strike; SFX.hit();
+        const tex = A.texture(b.t).filter(Boolean);
+        for (let i = 0; i < 4; i++) particles.push({ x: (target.c + .5) * bs, y: (target.r + .3) * bs, vx: (Math.random() * 2 - 1) * bs * 2, vy: -Math.random() * bs * 3, life: .35, col: tex[Math.floor(Math.random() * tex.length)], s: Math.max(2, bs / 10) });
+      }
+      if (progress >= 1) { const { r, c } = target; target = null; progress = 0; breakBlock(r, c); }
+    }
+  } else if (walkTo != null) {
+    const dx = walkTo - miner.x;
+    if (Math.abs(dx) < .05) walkTo = null;
+    else { miner.dir = Math.sign(dx); miner.x += Math.sign(dx) * Math.min(speed * dt, Math.abs(dx)); miner.state = 'walk'; }
+  } else if (!playing) {
+    // title screen: wander
+    miner.x += miner.dir * 2 * dt; miner.state = 'walk';
+    if (miner.x > COLS - 4 || miner.x < 4) miner.dir *= -1;
+  }
+  miner.x = Math.max(.5, Math.min(COLS - .5, miner.x));
+  if (miner.state === 'walk') miner.walkT += dt; else miner.walkT = 0;
+  if (miner.state !== 'mine') miner.swingT = 0;
+
+  if (!playing) camX = miner.x * bs - W / 2;
+  else if (follow) camX += (miner.x * bs - W / 2 - camX) * Math.min(1, dt * 5);
+  clampCam();
+
+  for (const p of particles) { p.vy += bs * 22 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) particles.splice(i, 1);
+  for (const f of flyers) f.t += dt / .55;
+  for (let i = flyers.length - 1; i >= 0; i--) if (flyers[i].t >= 1) { SFX.pop(); bumpSlot(flyers[i].k); flyers.splice(i, 1); }
+  for (const c of clouds) c.x += dt * 9;
+  // sparkles on rare ore that is on screen
+  if (Math.random() < dt * 14) {
+    const c = Math.floor((camX + Math.random() * W) / bs), r = 8 + Math.floor(Math.random() * 10);
+    const b = grid[r]?.[c];
+    if (b && !b.mined && (['diamond', 'gold', 'emerald'].includes(b.t) || b.proj !== undefined)) sparkles.push({ c, r, ox: 3 + Math.random() * 10, oy: 3 + Math.random() * 10, life: .6 });
+  }
+  for (const s of sparkles) s.life -= dt;
+  for (let i = sparkles.length - 1; i >= 0; i--) if (sparkles[i].life <= 0) sparkles.splice(i, 1);
+}
+
+function drawText(str, x, y, s, color, shadow, align = 'l') {
+  const c = textCanvas(str, s, color, shadow);
+  const w = A.textWidth(str) * s;
+  ctx.drawImage(c, Math.round(align === 'c' ? x - w / 2 : align === 'r' ? x - w : x), Math.round(y));
+}
+
+function drawMiner() {
+  const s = bs / 8;
+  const h = 17 * s;
+  const cx = miner.x * bs - camX, top = offY + SURF * bs - h;
+  const bob = miner.state === 'walk' && Math.floor(miner.walkT * 8) % 2 ? -s : 0;
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(top + bob));
+  ctx.scale(miner.dir, 1);
+  ctx.translate(-5 * s, 0);
+  const C = A.MINER_COLORS;
+  const body = A.MINER_BODY.slice(0, 14);
+  const legs = miner.state === 'walk' && Math.floor(miner.walkT * 8) % 2 ? ['..NN.NN...', '.NN...NN..', 'KKK...KKK.'] : A.MINER_BODY.slice(14);
+  const paint = (rows, oy) => rows.forEach((row, y) => [...row].forEach((ch, x) => { const col = C[ch]; if (col) { ctx.fillStyle = col; ctx.fillRect(x * s, (y + oy) * s, s + .5, s + .5); } }));
+  paint(body, 0); paint(legs, 14);
+  let ang = 0;
+  if (miner.state === 'mine') ang = 50 - 55 * Math.cos(2 * Math.PI * miner.swingT / .3);
+  else if (miner.state === 'walk') ang = Math.sin(miner.walkT * 10) * 12;
+  else ang = Math.sin(T * 2) * 4;
+  const [px, py] = A.MINER_PIVOT;
+  ctx.translate(px * s, py * s); ctx.rotate(ang * Math.PI / 180); ctx.translate(-px * s, -py * s);
+  paint(A.MINER_ARM, 0);
+  ctx.restore();
+  // name tag
+  const tag = (S.login || 'pvjambur').toUpperCase();
+  const ts = Math.max(1, Math.round(bs / 16));
+  const tw = A.textWidth(tag) * ts;
+  ctx.fillStyle = 'rgba(0,0,0,.45)';
+  ctx.fillRect(Math.round(cx - tw / 2 - 3 * ts), Math.round(top + bob - 12 * ts), tw + 6 * ts, 11 * ts);
+  drawText(tag, cx, top + bob - 10 * ts, ts, '#ffffff', null, 'c');
+}
+
+function drawSign(e) {
+  const x = e.col * bs - camX, y = offY + (SURF - 1) * bs, u = bs / 16;
+  const hov = hover?.ent === e;
+  if (e.chest) {
+    const ch = ICON.chest;
+    ctx.drawImage(ch, Math.round(x + u), Math.round(y + 5 * u), Math.round(14 * u), Math.round(11 * u));
+  } else {
+    ctx.fillStyle = '#6b5032'; ctx.fillRect(Math.round(x + 7 * u), Math.round(y), Math.ceil(2 * u), bs);
+    const by = y - bs * .55;
+    ctx.drawImage(TEX.plank, 0, 0, 16, 9, Math.round(x - 2 * u), Math.round(by), Math.round(20 * u), Math.round(11 * u));
+    ctx.strokeStyle = '#3a2616'; ctx.lineWidth = Math.max(1, u); ctx.strokeRect(Math.round(x - 2 * u) + .5, Math.round(by) + .5, Math.round(20 * u), Math.round(11 * u));
+    ctx.fillStyle = '#3a2616';
+    for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(x + 1 * u), Math.round(by + (2.5 + i * 3) * u), Math.round((i === 2 ? 8 : 14) * u), Math.max(1, Math.round(u)));
+  }
+  if (hov) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x - 3 * u, y - (e.chest ? -4 * u : bs * .6), 22 * u, e.chest ? 13 * u : bs * 1.6); }
+  const ts = Math.max(1, Math.round(bs / 12));
+  const ly = y - (e.chest ? 4 * u : bs * .55) - 10 * ts - (ENT.indexOf(e) % 2) * 9 * ts - Math.sin(T * 3 + e.col) * ts;
+  drawText(e.label, x + bs / 2, ly, ts, hov ? '#ffff55' : '#ffffff', '#3f3f3f', 'c');
+}
+
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, offY + SURF * bs);
+  g.addColorStop(0, '#5d8fe8'); g.addColorStop(1, '#bcd6ff');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // sun
+  const su = Math.max(28, bs * 1.8);
+  ctx.fillStyle = '#fff6c2'; ctx.fillRect(W - su * 2.2, Math.max(70, offY + bs * .4), su, su);
+  ctx.fillStyle = '#ffe36b'; ctx.fillRect(W - su * 2.2 + su * .15, Math.max(70, offY + bs * .4) + su * .15, su * .7, su * .7);
+  // clouds (parallax)
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  const span = W + 400;
+  for (const c of clouds) {
+    const x = (((c.x - camX * .3) % span) + span) % span - 200, y = Math.max(8, offY) + c.y * (bs / 24);
+    const h = Math.max(8, bs * .5);
+    ctx.fillRect(x, y + h, c.w, h); ctx.fillRect(x + c.w * .2, y, c.w * .45, h);
+  }
+  // below the world
+  ctx.fillStyle = '#0b0b0d'; ctx.fillRect(0, offY + ROWS * bs, W, H);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(wc, Math.round(-camX), offY);
+  // month labels
+  const ms = Math.max(1, Math.round(bs / 14));
+  let lastM = -1, lastI = -9;
+  weeks.forEach((w, i) => {
+    const d = w.find(Boolean); const m = dt0(d.date).getMonth();
+    if (m !== lastM) {
+      if (i - lastI >= 3) { const x = (MINE0 + i) * bs - camX; if (x > -60 && x < W) drawText(MON[m].toUpperCase(), x, offY + (SURF - 3.2) * bs, ms, '#ffffff', '#2a3a55'); lastI = i; }
+      lastM = m;
+    }
+  });
+  // mine entrance marker
+  const mx = MINE0 * bs - camX;
+  if (mx > -200 && mx < W + 50) drawText('THE MINE ▶', mx - 4, offY + (SURF - 4.4) * bs, ms + 1, '#ffff55', '#3f3f15', 'l');
+  ENT.forEach(drawSign);
+  // gem glow
+  for (let i = 0; i < P.projects.length; i++) {
+    for (let r = 16; r <= 17; r++) for (let c = Math.floor(camX / bs); c < (camX + W) / bs; c++) {
+      const b = grid[r]?.[c]; if (b && b.proj === i && !b.mined) {
+        ctx.strokeStyle = A.ORES[b.t][1]; ctx.globalAlpha = .45 + .45 * Math.sin(T * 4 + i);
+        ctx.lineWidth = Math.max(2, bs / 10); ctx.strokeRect(c * bs - camX + 1, offY + r * bs + 1, bs - 2, bs - 2); ctx.globalAlpha = 1;
+      }
+    }
+  }
+  // sparkles
+  ctx.fillStyle = '#fff';
+  for (const s of sparkles) {
+    const u = bs / 16, x = s.c * bs - camX + s.ox * u, y = offY + s.r * bs + s.oy * u, a = Math.sin((s.life / .6) * Math.PI);
+    ctx.globalAlpha = a; ctx.fillRect(x - u, y, 3 * u, u); ctx.fillRect(x, y - u, u, 3 * u); ctx.globalAlpha = 1;
+  }
+  // hover outline
+  if (hover && hover.r !== undefined && playing) {
+    const x = hover.c * bs - camX, y = offY + hover.r * bs;
+    ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, bs - 2, bs - 2);
+  }
+  // target, cracks
+  if (target) {
+    const x = target.c * bs - camX, y = offY + target.r * bs, u = bs / 16;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(x, y, bs, bs);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(x - 1.5, y - 1.5, bs + 3, bs + 3);
+    const n = Math.floor(Math.min(1, progress) * crackCells.length);
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    for (let i = 0; i < n; i++) ctx.fillRect(x + crackCells[i][0] * u, y + crackCells[i][1] * u, u + .5, u + .5);
+    // a faint line from the miner to deep targets so it reads which block is being mined
+    if (target.r > SURF + 1) {
+      ctx.strokeStyle = 'rgba(255,255,160,.35)'; ctx.setLineDash([u * 2, u * 2]); ctx.lineWidth = Math.max(1, u);
+      ctx.beginPath(); ctx.moveTo(miner.x * bs - camX + miner.dir * bs * .6, offY + SURF * bs - bs * .9); ctx.lineTo(x + bs / 2, y + bs / 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  drawMiner();
+  for (const p of particles) { ctx.fillStyle = p.col; ctx.fillRect(p.x - camX, offY + p.y, p.s, p.s); }
+  for (const f of flyers) {
+    const e = f.t < .5 ? 2 * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 2) / 2;
+    const x = f.x0 + (f.x1 - f.x0) * e, y = f.y0 + (f.y1 - f.y0) * e - Math.sin(f.t * Math.PI) * 80;
+    const sz = Math.max(18, bs * .8);
+    ctx.drawImage(f.icon, x - sz / 2, y - sz / 2, sz, sz);
+  }
+  if (playing) drawMinimap();
+}
+
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+
+// ------------------------------------------------------------ title screen
+function drawLogo() {
+  const lg = $('#logo'), x = lg.getContext('2d');
+  const name = P.name.replace(/ [A-Z] /, ' ').toUpperCase();
+  const lines = innerWidth < 760 ? name.split(' ') : [name];
+  const longest = Math.max(...lines.map((l) => A.textWidth(l)));
+  const s = Math.max(4, Math.min(14, Math.floor((Math.min(innerWidth * .9, 1100)) / (longest + 2))));
+  lg.width = (longest + 2) * s; lg.height = lines.length * 9 * s + s;
+  const pat = x.createPattern((() => { const c = document.createElement('canvas'); c.width = c.height = s * 5; const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false; cx.drawImage(TEX.stone, 0, 0, s * 5, s * 5); return c; })(), 'repeat');
+  lines.forEach((ln, li) => {
+    const { pixels, width } = A.textPixels(ln);
+    const ox = ((longest - width) / 2) * s, oy = li * 9 * s;
+    const set = new Set(pixels.map(([a, b]) => a + ',' + b));
+    x.fillStyle = '#1e1e1e'; pixels.forEach(([a, b]) => x.fillRect(ox + a * s + s * .7, oy + b * s + s * .9, s, s));
+    x.fillStyle = '#4a4a4a'; pixels.forEach(([a, b]) => x.fillRect(ox + a * s + s * .35, oy + b * s + s * .45, s, s));
+    x.fillStyle = pat; pixels.forEach(([a, b]) => x.fillRect(ox + a * s, oy + b * s, s, s));
+    x.fillStyle = '#d0d0d0'; pixels.forEach(([a, b]) => { if (!set.has(a + ',' + (b - 1))) x.fillRect(ox + a * s, oy + b * s, s, Math.max(1, s / 3)); });
+  });
+}
+$('#splash').textContent = P.tagline;
+$('#titleSub').textContent = 'Every block in the mine is one day of GitHub contributions. Rarer ore, busier day. My projects are buried as gems.';
+$('#foot').textContent = `Data updated ${fmt(S.updated)} · ${S.total} contributions in the last year`;
+$('#ghBtn').href = P.links.github;
+
+function start() {
+  playing = true; audio();
+  $('#title').hidden = true; $('#hud').hidden = false;
+  miner.x = 9.5; miner.dir = 1; walkTo = null; follow = true;
+  camX = miner.x * bs - W / 2; clampCam();
+  setTimeout(() => { $('#hint').hidden = true; }, 12000);
+}
+$('#start').onclick = start;
+$('#plainBtn').onclick = () => { start(); openModal('plain'); };
+
+buildWho(); buildHotbar(); resize(); drawLogo();
+addEventListener('resize', () => { resize(); drawLogo(); });
+if (location.hash === '#play') start();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
