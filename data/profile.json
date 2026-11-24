@@ -190,7 +190,7 @@
   {
    "date": "2025-12-30",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2025-12-31",
@@ -290,7 +290,7 @@
   {
    "date": "2026-01-19",
    "count": 8,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-01-20",
@@ -375,7 +375,7 @@
   {
    "date": "2026-02-05",
    "count": 9,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-02-06",
@@ -660,7 +660,7 @@
   {
    "date": "2026-04-03",
    "count": 11,
-   "level": 4
+   "level": 3
   },
   {
    "date": "2026-04-04",
@@ -750,7 +750,7 @@
   {
    "date": "2026-04-21",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-04-22",
@@ -810,7 +810,7 @@
   {
    "date": "2026-05-03",
    "count": 9,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-05-04",
@@ -840,12 +840,12 @@
   {
    "date": "2026-05-09",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-05-10",
    "count": 9,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-05-11",
@@ -860,7 +860,7 @@
   {
    "date": "2026-05-13",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-05-14",
@@ -915,7 +915,7 @@
   {
    "date": "2026-05-24",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-05-25",
@@ -955,7 +955,7 @@
   {
    "date": "2026-06-01",
    "count": 8,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-06-02",
@@ -980,7 +980,7 @@
   {
    "date": "2026-06-06",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-06-07",
@@ -1005,12 +1005,12 @@
   {
    "date": "2026-06-11",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-06-12",
    "count": 9,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-06-13",
@@ -1100,7 +1100,7 @@
   {
    "date": "2026-06-30",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-07-01",
@@ -1295,7 +1295,7 @@
   {
    "date": "2026-08-08",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-08-09",
@@ -1305,7 +1305,7 @@
   {
    "date": "2026-08-10",
    "count": 8,
-   "level": 3
+   "level": 2
   },
   {
    "date": "2026-08-11",
@@ -1685,7 +1685,7 @@
   {
    "date": "2026-10-25",
    "count": 4,
-   "level": 2
+   "level": 1
   },
   {
    "date": "2026-10-26",
@@ -1834,14 +1834,14 @@
   },
   {
    "date": "2026-11-24",
-   "count": 0,
-   "level": 0
+   "count": 18,
+   "level": 4
   }
  ],
- "publicRepos": 41,
+ "publicRepos": 45,
  "stars": 8,
  "followers": 9,
- "commits": 527,
+ "commits": 541,
  "prs": 4,
  "issues": 0,
  "reviews": 0,
@@ -1852,7 +1852,7 @@
    "url": "https://github.com/pvjambur/neetcode-submissions-1p11w52v",
    "desc": "My NeetCode.io problem submissions",
    "lang": "C++",
-   "commits": 333
+   "commits": 334
   },
   {
    "name": "AdPulse",
@@ -1876,7 +1876,7 @@
    "url": "https://github.com/pvjambur/LLD_Patterns_Questions",
    "desc": "",
    "lang": "C++",
-   "commits": 20
+   "commits": 23
   },
   {
    "name": "2026_LC_NC_CF_Comps_Journal",
