@@ -35,7 +35,7 @@
   > loading world "pvjambur" ...
   [########################################] 100%
 
-  generating terrain ............... 368 days
+  generating terrain ............... 369 days
   placing ore ...................... 570 contributions
   richest vein ..................... 2026-04-06 (37)
   longest tunnel ................... 36 day streak
