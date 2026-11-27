@@ -36,7 +36,7 @@
   [########################################] 100%
 
   generating terrain ............... 370 days
-  placing ore ...................... 573 contributions
+  placing ore ...................... 574 contributions
   richest vein ..................... 2026-04-06 (37)
   longest tunnel ................... 36 day streak
   diamond days ..................... 5
